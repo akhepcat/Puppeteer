@@ -1,0 +1,3 @@
+yum -y upgrade
+lsb_release -a
+uptime
