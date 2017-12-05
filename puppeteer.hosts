@@ -1,0 +1,10 @@
+## I'm a comment!
+#
+# Uses the following syntax:
+#
+# hostname:os-type
+#
+
+host-1.local:ubuntu
+host-2.local:redhat
+host-3.local:eol
