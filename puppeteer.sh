@@ -38,12 +38,15 @@ do_host() {
 	echo "host: ${host}, user: ${user:-root}, distro: ${distro:-generic}, commands: ${CMDS}${distro:+.$distro}"
 
 
+	SSHOPTS="-o PasswordAuthentication=no -o KbdInteractiveAuthentication=no -o IdentitiesOnly=yes -o ConnectTimeout=5"
+	SSHIDS="-i ${HOME}/.ssh/id_rsa.puppeteer -i ${HOME}/.ssh/id_ecdsa.puppeteer"
+
 	if [ 1 -eq ${CONNECT_ONLY} ]
 	then
-		ssh -4 -v -o ConnectTimeout=5 -i ${HOME}/.ssh/id_rsa.puppeteer -i ${HOME}/.ssh/id_ecdsa.puppeteer ${user:-root}@${host}
+		ssh -4 -v ${SSHOPTS} ${SSHIDS} ${user:-root}@${host}
 	else
 		echo "MARK --${DATE}-- host: ${host}, user: ${user:-root}, distro: ${distro:-generic}, commands: ${CMDS}${distro:+.$distro}" >> ${host}.log
-		ssh -4 -o ConnectTimeout=5 -i ${HOME}/.ssh/id_rsa.puppeteer -i ${HOME}/.ssh/id_ecdsa.puppeteer ${user:-root}@${host} < ${CMDS}${distro:+.$distro} 2>&1 | tee -a ${host}.log
+		ssh -4 ${SSHOPTS} ${SSHIDS} ${user:-root}@${host} < ${CMDS}${distro:+.$distro} 2>&1 | tee -a ${host}.log
 	fi
 
 	echo "complete"
