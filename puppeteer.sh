@@ -67,8 +67,11 @@ all_hosts() {
 if [ ! -r ${HOME}/.ssh/id_rsa.puppeteer -a ! -r ${HOME}/.ssh/id_ecdsa.puppeteer ]
 then
 	echo "please create the shared certificates:"
-	echo "   ${HOME}/.ssh/id_rsa.puppeteer"
-	echo "   ${HOME}/.ssh/id_ecdsa.puppeteer"
+	echo "   ssh-keygen -t rsa -f ${HOME}/.ssh/id_rsa.puppeteer"
+	echo "   ssh-keygen -t ecdsa -f ${HOME}/.ssh/id_ecdsa.puppeteer"
+	echo ""
+	echo "Next copy the text from the .pub file into each hosts' authorized_keys file"
+	echo "either manually, or using the ssh-copy-id command"
 	echo ""
 	exit 1
 fi
