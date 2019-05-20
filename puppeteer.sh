@@ -14,10 +14,12 @@ host=""
 usage() {
         echo "${PROG} [-an] [-ch] host"
         echo "choose one of"
-        echo "	-a		All hosts"
-        echo "	-h [host]	specific host"
-        echo "	-c		connect test"
-        echo "	-n		no verification of host configuration with ${HOSTS}"
+        echo "	-a		  All hosts"
+        echo "	-h [host]	  specific host"
+        echo "	-d [commands.txt] debugging/alternate commands text"
+        echo "	-c		  connect test"
+	echo "  -b                check for broken upgrades from last-run data"
+        echo "	-n		  no verification of host configuration with ${HOSTS}"
         echo ""
 }
 
@@ -35,8 +37,10 @@ do_host() {
 	[[ -z "${host##*:*}" ]] && distro=${host##*:}
 	host=${host%%:*}
 
-	echo "host: ${host}, user: ${user:-root}, distro: ${distro:-generic}, commands: ${CMDS}${distro:+.$distro}"
+	MYCMDS=${CMDS}${distro:+.$distro}
+	[[ -n "${DCMDS}" ]] && MYCMDS=${DCMDS}
 
+	echo "host: ${host}, user: ${user:-root}, distro: ${distro:-generic}, commands: ${MYCMDS}"
 
 	SSHOPTS="-o PasswordAuthentication=no -o KbdInteractiveAuthentication=no -o IdentitiesOnly=yes -o ConnectTimeout=5"
 	SSHIDS="-i ${HOME}/.ssh/id_rsa.puppeteer -i ${HOME}/.ssh/id_ecdsa.puppeteer"
@@ -45,8 +49,8 @@ do_host() {
 	then
 		ssh -4 -v ${SSHOPTS} ${SSHIDS} ${user:-root}@${host}
 	else
-		echo "MARK --${DATE}-- host: ${host}, user: ${user:-root}, distro: ${distro:-generic}, commands: ${CMDS}${distro:+.$distro}" >> ${host}.log
-		ssh -4 ${SSHOPTS} ${SSHIDS} ${user:-root}@${host} < ${CMDS}${distro:+.$distro} 2>&1 | tee -a ${host}.log
+		echo "MARK --${DATE}-- host: ${host}, user: ${user:-root}, distro: ${distro:-generic}, commands: ${MYCMDS}" >> ${host}.log
+		ssh -4 ${SSHOPTS} ${SSHIDS} ${user:-root}@${host} < ${MYCMDS} 2>&1 | tee -a ${host}.log
 	fi
 
 	echo "complete"
@@ -83,15 +87,29 @@ then
 fi
 
 
-while getopts "anch:" param; do
+while getopts "banch:d:" param; do
  case $param in
   a) ALL=1 ;;
+  b) BROKEN_ONLY=1;;
   c) CONNECT_ONLY=1;;
   h) HOST_ONLY=1; host=${OPTARG} ;;
+  d) DCMDS=${OPTARG} ;;
   n) VALIDATE=0 ;;
   *) usage; exit 1;;
  esac
 done
+
+if [ 1 -eq ${BROKEN_ONLY} ]
+then
+	echo "The following hosts require manual error correction:"
+	for LF in *.log; 
+	do
+		( echo $LF; \
+	        MARK=$(grep MARK "${LF}" | awk '{print $2}' | tail -1); \
+		sed -n "/${MARK}/,\$p" "${LF}" | grep -E 'dpkg: error' ) | grep -B1 blacklist | grep log | sed 's/\.log//g;'
+	done 
+	exit 0
+fi
 
 if [ -z "${host}" ]
 then
