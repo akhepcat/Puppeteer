@@ -99,7 +99,7 @@ while getopts "banch:d:" param; do
  esac
 done
 
-if [ 1 -eq ${BROKEN_ONLY} ]
+if [ 1 -eq ${BROKEN_ONLY:-0} ]
 then
 	echo "The following hosts require manual error correction:"
 	for LF in *.log; 
