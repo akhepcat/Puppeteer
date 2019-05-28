@@ -1,3 +1,3 @@
 yum -y upgrade
-lsb_release -a
+cat /etc/redhat-release
 uptime
