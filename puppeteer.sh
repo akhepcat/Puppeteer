@@ -74,7 +74,7 @@ do_host() {
 			ssh -4 ${SSHOPTS} ${SSHIDS} ${user:-root}@${host} < ${MYCMDS} 2>&1 | tee -a ${host}.log
 			if [ "${reboot:-X}" = "R" -o \( "${reboot}" = "r" -a ${DO_REBOOT:-0} -eq 1 \) ]
 			then
- 				ssh -4 ${SSHOPTS} ${SSHIDS} ${user:-root}@${host} -c "shutdown -r now" 2>&1 | tee -a ${host}.log
+ 				ssh -4 ${SSHOPTS} ${SSHIDS} ${user:-root}@${host} "shutdown -r now" 2>&1 | tee -a ${host}.log
 			fi
 		fi
 	fi
