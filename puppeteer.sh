@@ -35,6 +35,8 @@ do_host() {
 		[[ -n "${thost}" ]] && host=${thost}
 	fi
 
+	host=${host%%#*}	# trailing comments go buh-bye
+	host=${host%% *}	# trailing spaces go buh-bye
 	[[ -z "${host##*@*}" ]] && user=${host%%@*}
 	host=${host##*@}
 	[[ -z "${host##*:*}" ]] && distro=${host#*:} && distro=${distro%%:*}
