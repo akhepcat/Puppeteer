@@ -4,21 +4,24 @@ DATE="$(date +%Y%m%d-%H%M)"
 HOSTS=puppeteer.hosts
 CMDS=puppeteer.commands
 ###
+MYHOST=$(hostname)
 
 CONNECT_ONLY=0
 ALL=0
 VALIDATE=1
+DO_REBOOT=0
 host=""
 ###
 
 usage() {
-        echo "${PROG} [-an] [-ch] host"
+        echo "${PROG} -[abcnr] [-h host] [-d cmd.txt]"
         echo "choose one of"
         echo "	-a		  All hosts"
         echo "	-h [host]	  specific host"
         echo "	-d [commands.txt] debugging/alternate commands text"
         echo "	-c		  connect test"
 	echo "  -b                check for broken upgrades from last-run data"
+	echo "  -r                reboot allowed hosts after update"
         echo "	-n		  no verification of host configuration with ${HOSTS}"
         echo ""
 }
@@ -28,13 +31,14 @@ do_host() {
 
 	if [ 1 -eq ${VALIDATE} ]
 	then
-		thost=$(grep "$host" ${HOSTS} | grep -v '^#')
+		thost=$(grep -wi "$host" ${HOSTS} | grep -v '^#')
 		[[ -n "${thost}" ]] && host=${thost}
 	fi
 
 	[[ -z "${host##*@*}" ]] && user=${host%%@*}
 	host=${host##*@}
-	[[ -z "${host##*:*}" ]] && distro=${host##*:}
+	[[ -z "${host##*:*}" ]] && distro=${host#*:} && distro=${distro%%:*}
+	[[ -n "${host//*$distro:/}" ]] && reboot=${host//*$distro:/}
 	host=${host%%:*}
 
 	MYCMDS=${CMDS}${distro:+.$distro}
@@ -42,15 +46,35 @@ do_host() {
 
 	echo "host: ${host}, user: ${user:-root}, distro: ${distro:-generic}, commands: ${MYCMDS}"
 
+	[[ "${distro:-generic}" = "disabled" ]] && return
+
 	SSHOPTS="-o PasswordAuthentication=no -o KbdInteractiveAuthentication=no -o IdentitiesOnly=yes -o ConnectTimeout=5"
 	SSHIDS="-i ${HOME}/.ssh/id_rsa.puppeteer -i ${HOME}/.ssh/id_ecdsa.puppeteer"
 
-	if [ 1 -eq ${CONNECT_ONLY} ]
+	if [ "${host,,}" = "localhost" -o "${host}" = "127.0.0.1" -o "${host,,}" = "${MYHOST,,}" ]
 	then
-		ssh -4 -v ${SSHOPTS} ${SSHIDS} ${user:-root}@${host}
+
+		if [ 1 -eq ${CONNECT_ONLY} ]
+		then
+			echo "testing local escalation"
+			sudo whoami
+		else
+			echo "MARK --${DATE}-- host: ${host}, user: ${user:-root}, distro: ${distro:-generic}, commands: ${MYCMDS}" >> ${host}.log
+			sudo -i -u root -- < ${MYCMDS} | tee -a ${host}.log
+			# we don't reboot localhost
+		fi
 	else
-		echo "MARK --${DATE}-- host: ${host}, user: ${user:-root}, distro: ${distro:-generic}, commands: ${MYCMDS}" >> ${host}.log
-		ssh -4 ${SSHOPTS} ${SSHIDS} ${user:-root}@${host} < ${MYCMDS} 2>&1 | tee -a ${host}.log
+		if [ 1 -eq ${CONNECT_ONLY} ]
+		then
+			ssh -4 -v ${SSHOPTS} ${SSHIDS} ${user:-root}@${host}
+		else
+			echo "MARK --${DATE}-- host: ${host}, user: ${user:-root}, distro: ${distro:-generic}, commands: ${MYCMDS}" >> ${host}.log
+			ssh -4 ${SSHOPTS} ${SSHIDS} ${user:-root}@${host} < ${MYCMDS} 2>&1 | tee -a ${host}.log
+			if [ "${reboot:-X}" = "R" -o \( "${reboot}" = "r" -a ${DO_REBOOT:-0} -eq 1 \) ]
+			then
+ 				ssh -4 ${SSHOPTS} ${SSHIDS} ${user:-root}@${host} -c "shutdown -r now" 2>&1 | tee -a ${host}.log
+			fi
+		fi
 	fi
 
 	echo "complete"
@@ -62,7 +86,7 @@ do_host() {
 
 all_hosts() {
 
-	for host in $(grep -v ^# ${HOSTS});
+	for host in $(grep -v '^#' ${HOSTS});
 	do
 		do_host ${host}
 	done
@@ -87,7 +111,7 @@ then
 fi
 
 
-while getopts "banch:d:" param; do
+while getopts "rbanch:d:" param; do
  case $param in
   a) ALL=1 ;;
   b) BROKEN_ONLY=1;;
@@ -95,6 +119,7 @@ while getopts "banch:d:" param; do
   h) HOST_ONLY=1; host=${OPTARG} ;;
   d) DCMDS=${OPTARG} ;;
   n) VALIDATE=0 ;;
+  r) DO_REBOOT=1 ;;
   *) usage; exit 1;;
  esac
 done
