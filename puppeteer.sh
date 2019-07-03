@@ -20,8 +20,9 @@ usage() {
         echo "	-h [host]	  specific host"
         echo "	-d [commands.txt] debugging/alternate commands text"
         echo "	-c		  connect test"
-	echo "  -b                check for broken upgrades from last-run data"
-	echo "  -r                reboot allowed hosts after update"
+	echo "	-b                check for broken upgrades from last-run data"
+	echo "	-r                reboot allowed hosts after update"
+	echo "	-R                only list hosts that will reboot after update"
         echo "	-n		  no verification of host configuration with ${HOSTS}"
         echo ""
 }
@@ -92,6 +93,20 @@ all_hosts() {
 		do_host ${host}
 	done
 }
+show_rebooters() {
+	printf "%40s %10s\n" "HOSTNAME" "REBOOT"
+	printf "%40s %10s\n" "--------" "------"
+
+
+	for line in $(grep -Ei ':r(\s+|$)' ${HOSTS} | cut -f1,3 -d: | awk '{print $1}')
+	do
+		host=${line%%:*}
+		boot=${line##*:}
+		[[ "${boot}" = "r" ]] && boot="optional" || boot="forced"
+
+		printf "%40s %10s\n" $host $boot
+	done
+}
 
 if [ ! -r ${HOME}/.ssh/id_rsa.puppeteer -a ! -r ${HOME}/.ssh/id_ecdsa.puppeteer ]
 then
@@ -112,7 +127,7 @@ then
 fi
 
 
-while getopts "rbanch:d:" param; do
+while getopts "rRbanch:d:" param; do
  case $param in
   a) ALL=1 ;;
   b) BROKEN_ONLY=1;;
@@ -121,6 +136,7 @@ while getopts "rbanch:d:" param; do
   d) DCMDS=${OPTARG} ;;
   n) VALIDATE=0 ;;
   r) DO_REBOOT=1 ;;
+  R) show_rebooters; exit 0;;
   *) usage; exit 1;;
  esac
 done
