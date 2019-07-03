@@ -98,14 +98,17 @@ show_rebooters() {
 	echo "HOSTNAME REBOOT" ;
 	echo "-------- ------" ; 
 
-	for line in $(grep -Ei ':r(\s+|$)' ${HOSTS} | cut -f1,3 -d: | awk '{print $1}')
+	for line in $(grep -Ei ':r(\s+|$)' ${HOSTS} | awk '{print $1}')
 	do
-		host=${line%%:*} ;
-		boot=${line##*:} ;
+		if [ "${line##*disabled*}" = "$line" ]
+		then
+			host=${line%%:*} ;
+			boot=${line##*:} ;
 
-		[[ "${boot}" = "r" ]] && boot="optional" || boot="forced" ;
+			[[ "${boot}" = "r" ]] && boot="optional" || boot="forced" ;
 
-		echo "$host $boot"
+			echo "$host $boot"
+		fi
 	done
       ) | column -t
 	echo ""
