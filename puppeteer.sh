@@ -94,18 +94,21 @@ all_hosts() {
 	done
 }
 show_rebooters() {
-	printf "%40s %10s\n" "HOSTNAME" "REBOOT"
-	printf "%40s %10s\n" "--------" "------"
-
+      (
+	echo "HOSTNAME REBOOT" ;
+	echo "-------- ------" ; 
 
 	for line in $(grep -Ei ':r(\s+|$)' ${HOSTS} | cut -f1,3 -d: | awk '{print $1}')
 	do
-		host=${line%%:*}
-		boot=${line##*:}
-		[[ "${boot}" = "r" ]] && boot="optional" || boot="forced"
+		host=${line%%:*} ;
+		boot=${line##*:} ;
 
-		printf "%40s %10s\n" $host $boot
+		[[ "${boot}" = "r" ]] && boot="optional" || boot="forced" ;
+
+		echo "$host $boot"
 	done
+      ) | column -t
+	echo ""
 }
 
 if [ ! -r ${HOME}/.ssh/id_rsa.puppeteer -a ! -r ${HOME}/.ssh/id_ecdsa.puppeteer ]
