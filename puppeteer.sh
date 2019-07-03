@@ -93,21 +93,33 @@ all_hosts() {
 		do_host ${host}
 	done
 }
-show_rebooters() {
+
+show_hosts() {
       (
-	echo "HOSTNAME REBOOT" ;
-	echo "-------- ------" ; 
+	echo "HOSTNAME STATUS REBOOT" ;
+	echo "-------- ------ ------" ; 
 
-	for line in $(grep -Ei ':r(\s+|$)' ${HOSTS} | awk '{print $1}')
+	for line in $( grep -v '^#' ${HOSTS} | awk '{print $1}')
 	do
-		if [ "${line##*disabled*}" = "$line" ]
+		if [ "${line##*disabled*}" != "$line" ]
 		then
-			host=${line%%:*} ;
-			boot=${line##*:} ;
+			RUN="disabled"
+		else
+			RUN="enabled"
+		fi
+		host=${line%%:*} ;
+		boot=${line##*:} ;
 
-			[[ "${boot}" = "r" ]] && boot="optional" || boot="forced" ;
+		[[ "${boot}" = "r" ]] && boot="optional";
+		[[ "${boot}" = "R" ]] && boot="forced" ;
+		[[ "${boot,,}" = "x" ]] && boot="" ;
 
-			echo "$host $boot"
+		if [ \( ${BOOT_ONLY:-0} -eq 0 \) -o \( ${BOOT_ONLY:-0} -eq 1 -a "${boot}" != "" \) ]
+		then
+			if [ \( ${DISABLED_ONLY:-0} -eq 0 \) -o \( ${DISABLED_ONLY:-0} -eq 1 -a "$RUN" = "disabled" \) ]
+			then
+				echo "$host $RUN $boot"
+			fi
 		fi
 	done
       ) | column -t
@@ -133,7 +145,7 @@ then
 fi
 
 
-while getopts "rRbanch:d:" param; do
+while getopts "rRDHbanch:d:" param; do
  case $param in
   a) ALL=1 ;;
   b) BROKEN_ONLY=1;;
@@ -142,7 +154,9 @@ while getopts "rRbanch:d:" param; do
   d) DCMDS=${OPTARG} ;;
   n) VALIDATE=0 ;;
   r) DO_REBOOT=1 ;;
-  R) show_rebooters; exit 0;;
+  H) show_hosts; exit 0;;
+  D) DISABLED_ONLY=1; show_hosts; exit 0;;
+  R) BOOT_ONLY=1; show_hosts; exit 0;;
   *) usage; exit 1;;
  esac
 done
