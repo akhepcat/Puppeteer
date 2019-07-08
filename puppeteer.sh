@@ -14,18 +14,19 @@ host=""
 ###
 
 usage() {
-        echo "${PROG} -[abcnr] [-h host] [-d cmd.txt]"
+        echo "${PROG} -[abchnrRDL] [-H host] [-d cmd.txt]"
         echo "choose one of"
         echo "	-a		  All hosts"
-        echo "	-h [host]	  specific host"
+        echo "	-H [host]	  specific host"
         echo "	-d [commands.txt] debugging/alternate commands text"
         echo "	-c		  connect test"
+        echo "	-n		  no verification of host configuration with ${HOSTS}"
 	echo "	-b                check for broken upgrades from last-run data"
 	echo "	-r                reboot allowed hosts after update"
 	echo "	-R                only list hosts that will reboot after update"
 	echo "	-D                only list hosts that are currently disabled"
-	echo "	-H                list all hosts configured hosts"
-        echo "	-n		  no verification of host configuration with ${HOSTS}"
+	echo "	-L                list all hosts configured hosts"
+        echo "	-h		  this help text"
         echo ""
 }
 
@@ -147,19 +148,19 @@ then
 fi
 
 
-while getopts "rRDHbanch:d:" param; do
+while getopts "RDLbranchH:d:" param; do
  case $param in
   a) ALL=1 ;;
   b) BROKEN_ONLY=1;;
   c) CONNECT_ONLY=1;;
-  h) HOST_ONLY=1; host=${OPTARG} ;;
+  H) HOST_ONLY=1; host=${OPTARG} ;;
   d) DCMDS=${OPTARG} ;;
   n) VALIDATE=0 ;;
   r) DO_REBOOT=1 ;;
-  H) show_hosts; exit 0;;
+  L) show_hosts; exit 0;;
   D) DISABLED_ONLY=1; show_hosts; exit 0;;
   R) BOOT_ONLY=1; show_hosts; exit 0;;
-  *) usage; exit 1;;
+  h|*) usage; exit 1;;
  esac
 done
 
