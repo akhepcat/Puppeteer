@@ -99,30 +99,44 @@ all_hosts() {
 
 show_hosts() {
       (
-	echo "HOSTNAME STATUS REBOOT" ;
-	echo "-------- ------ ------" ; 
+	echo "HOSTNAME SYSTEM STATUS REBOOT"
+	echo "-------- ------ ------ ------" 
 
 	for line in $( grep -v '^#' ${HOSTS} | awk '{print $1}' | sort -f -t: -k2 -k1 )
 	do
-		if [ "${line##*disabled*}" != "$line" ]
+		RUN="enabled"
+		host=${line%%:*}
+		OS=${line//$host:/}
+		OS=${OS%%:*}
+		boot=${line##*:}
+
+		if [ "${OS}" = "disabled" ]
 		then
 			RUN="disabled"
-		else
-			RUN="enabled"
+			OS="n/a"
 		fi
-		host=${line%%:*} ;
-		boot=${line##*:} ;
 
-		[[ "${boot}" = "r" ]] && boot="optional";
-		[[ "${boot}" = "R" ]] && boot="forced" ;
-		[[ "${boot,,}" = "x" ]] && boot="" ;
+		[[ "${boot}" = "r" ]] && boot="optional"
+		[[ "${boot}" = "R" ]] && boot="forced"
+		[[ "${boot,,}" = "x" ]] && boot=""
 
-		if [ \( ${BOOT_ONLY:-0} -eq 0 \) -o \( ${BOOT_ONLY:-0} -eq 1 -a "${boot}" != "" \) ]
+		PRINT=0
+		if [ \( ${BOOT_ONLY:-0} -eq 0 \) -a \( ${DISABLED_ONLY:-0} -eq 0 \) ]
 		then
-			if [ \( ${DISABLED_ONLY:-0} -eq 0 \) -o \( ${DISABLED_ONLY:-0} -eq 1 -a "$RUN" = "disabled" \) ]
-			then
-				echo "$host $RUN $boot"
-			fi
+			PRINT=1
+		
+		elif [ ${BOOT_ONLY:-0} -eq 1 -a "${boot}" != "" -a "$RUN" != "disabled"  ]
+		then
+			PRINT=1
+
+		elif [ ${DISABLED_ONLY:-0} -eq 1 -a "$RUN" = "disabled"  ]
+		then
+			PRINT=1
+		fi
+
+		if [ ${PRINT:-0} -eq 1 ]
+		then
+			echo "$host $OS $RUN $boot"
 		fi
 	done
       ) | column -t
