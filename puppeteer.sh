@@ -23,6 +23,8 @@ usage() {
 	echo "	-b                check for broken upgrades from last-run data"
 	echo "	-r                reboot allowed hosts after update"
 	echo "	-R                only list hosts that will reboot after update"
+	echo "	-D                only list hosts that are currently disabled"
+	echo "	-H                list all hosts configured hosts"
         echo "	-n		  no verification of host configuration with ${HOSTS}"
         echo ""
 }
