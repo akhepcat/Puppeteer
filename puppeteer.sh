@@ -102,7 +102,7 @@ show_hosts() {
 	echo "HOSTNAME STATUS REBOOT" ;
 	echo "-------- ------ ------" ; 
 
-	for line in $( grep -v '^#' ${HOSTS} | awk '{print $1}')
+	for line in $( grep -v '^#' ${HOSTS} | awk '{print $1}' | sort -f -t: -k2 -k1 )
 	do
 		if [ "${line##*disabled*}" != "$line" ]
 		then
