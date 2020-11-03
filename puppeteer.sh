@@ -35,26 +35,46 @@ do_host() {
 
 	if [ 1 -eq ${VALIDATE} ]
 	then
-		thost=$(grep -wi "$host" ${HOSTS} | grep -v '^#')
+		thost=$(grep -wi "$host" ${HOSTS} | grep -viE "%.*$host" | grep -v '^#')
 		[[ -n "${thost}" ]] && host=${thost}
 	fi
 
 	host=${host%%[	# ]*}	# trailing tabs, hashes, and spaces go buh-bye
-	[[ -z "${host##*@*}" ]] && user=${host%%@*}
-	host=${host##*@}
-	[[ -z "${host##*:*}" ]] && distro=${host#*:} && distro=${distro%%:*}
-	[[ -n "${host//*$distro:/}" ]] && reboot=${host//*$distro:/}
-	host=${host%%:*}
+
+	if [ -n "${host}" -a -z "${host##*%*}" ]
+	then
+		# fuser@host-f%puser@host-p.example.net:redhat:X
+
+		finalhost=${host%%%*}		# fuser@host-f
+		[[ -z "${finalhost##*@*}" ]] && user=${finalhost%%@*}	# fuser
+
+		jump=${host##*%}	# puser@host-p.example.net:redhat:X
+
+		[[ -z "${jump##*:*}" ]] && distro=${jump#*:} && distro=${distro%%:*}
+		[[ -n "${jump//*$distro:/}" ]] && reboot=${jump//*$distro:/}
+
+		jump=${jump%%:*}	# puser@host-p.example.net
+		host=$finalhost		# host-f
+	else
+		jump=""
+		[[ -z "${host##*@*}" ]] && user=${host%%@*}
+		host=${host##*@}
+		[[ -z "${host##*:*}" ]] && distro=${host#*:} && distro=${distro%%:*}
+		[[ -n "${host//*$distro:/}" ]] && reboot=${host//*$distro:/}
+		host=${host%%:*}
+	fi
 
 	MYCMDS=${CMDS}${distro:+.$distro}
 	[[ -n "${DCMDS}" ]] && MYCMDS=${DCMDS}
 
-	echo "host: ${host}, user: ${user:-root}, distro: ${distro:-generic}, commands: ${MYCMDS}"
+	echo "host: ${host}, user: ${user}, jump: ${jump:-none}, distro: ${distro:-generic}, commands: ${MYCMDS}"
 
 	[[ "${distro:-generic}" = "disabled" ]] && return
 
 	SSHOPTS="-o PasswordAuthentication=no -o KbdInteractiveAuthentication=no -o IdentitiesOnly=yes -o ConnectTimeout=5"
 	SSHIDS="-i ${HOME}/.ssh/id_rsa.puppeteer -i ${HOME}/.ssh/id_ecdsa.puppeteer"
+
+	user=${user:-root}
 
 	if [ "${host,,}" = "localhost" -o "${host}" = "127.0.0.1" -o "${host,,}" = "${MYHOST,,}" ]
 	then
@@ -64,20 +84,20 @@ do_host() {
 			echo "testing local escalation"
 			sudo whoami
 		else
-			echo "MARK --${DATE}-- host: ${host}, user: ${user:-root}, distro: ${distro:-generic}, commands: ${MYCMDS}" >> ${host}.log
+			echo "MARK --${DATE}-- host: ${host}, user: ${user}, jump: ${jump:-none}, distro: ${distro:-generic}, commands: ${MYCMDS}" >> ${host}.log
 			sudo -i -u root -- < ${MYCMDS} | tee -a ${host}.log
 			# we don't reboot localhost
 		fi
 	else
 		if [ 1 -eq ${CONNECT_ONLY} ]
 		then
-			ssh -4 -v ${SSHOPTS} ${SSHIDS} ${user:-root}@${host}
+			ssh -4 -v ${SSHOPTS} ${SSHIDS} ${jump:+-J $user@$jump} ${user}@${host}
 		else
-			echo "MARK --${DATE}-- host: ${host}, user: ${user:-root}, distro: ${distro:-generic}, commands: ${MYCMDS}" >> ${host}.log
-			ssh -4 ${SSHOPTS} ${SSHIDS} ${user:-root}@${host} < ${MYCMDS} 2>&1 | tee -a ${host}.log
+			echo "MARK --${DATE}-- host: ${host}, user: ${user}, jump: ${jump:-none}, distro: ${distro:-generic}, commands: ${MYCMDS}" >> ${host}.log
+			ssh -4 ${SSHOPTS} ${SSHIDS} ${jump:+-J $user@$jump} ${user}@${host} < ${MYCMDS} 2>&1 | tee -a ${host}.log
 			if [ "${reboot:-X}" = "R" -o \( "${reboot}" = "r" -a ${DO_REBOOT:-0} -eq 1 \) ]
 			then
- 				ssh -4 ${SSHOPTS} ${SSHIDS} ${user:-root}@${host} "shutdown -r now" 2>&1 | tee -a ${host}.log
+ 				ssh -4 ${SSHOPTS} ${SSHIDS} ${jump:+-J $user@$jump} ${user}@${host} "shutdown -r now" 2>&1 | tee -a ${host}.log
 			fi
 		fi
 	fi
