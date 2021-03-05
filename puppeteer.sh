@@ -10,6 +10,8 @@ CONNECT_ONLY=0
 ALL=0
 VALIDATE=1
 DO_REBOOT=0
+IGNORE_CERT=0
+CERTOPT=""
 host=""
 ###
 
@@ -26,6 +28,7 @@ usage() {
 	echo "	-R                only list hosts that will reboot after update"
 	echo "	-D                only list hosts that are currently disabled"
 	echo "	-L                list all hosts configured hosts"
+	echo "	-I                ignore host certificate errors (DANGEROUS)"
         echo "	-h		  this help text"
         echo ""
 }
@@ -35,7 +38,7 @@ do_host() {
 
 	if [ 1 -eq ${VALIDATE} ]
 	then
-		thost=$(grep -wi "$host" ${HOSTS} | grep -viE "%.*$host" | grep -v '^#')
+		thost=$(grep -wi "$host" ${HOSTS} | grep -viE "%.*$host" | egrep -v '^[[:space:]]*#')
 		[[ -n "${thost}" ]] && host=${thost}
 	fi
 
@@ -71,7 +74,9 @@ do_host() {
 
 	[[ "${distro:-generic}" = "disabled" ]] && return
 
-	SSHOPTS="-o PasswordAuthentication=no -o KbdInteractiveAuthentication=no -o IdentitiesOnly=yes -o ConnectTimeout=5"
+	[[ ${IGNORE_CERT} -eq 1 ]] && CERTOPT="-o StrictHostKeyChecking=false -o UserKnownHostsFile=/dev/null -E /dev/null"
+
+	SSHOPTS="-o PasswordAuthentication=no -o KbdInteractiveAuthentication=no -o IdentitiesOnly=yes -o ConnectTimeout=5 ${CERTOPT}"
 	SSHIDS="-i ${HOME}/.ssh/id_rsa.puppeteer -i ${HOME}/.ssh/id_ecdsa.puppeteer"
 
 	user=${user:-root}
@@ -182,7 +187,7 @@ then
 fi
 
 
-while getopts "RDLbranchH:d:" param; do
+while getopts "IRDLbranchH:d:" param; do
  case $param in
   a) ALL=1 ;;
   b) BROKEN_ONLY=1;;
@@ -194,6 +199,7 @@ while getopts "RDLbranchH:d:" param; do
   L) show_hosts; exit 0;;
   D) DISABLED_ONLY=1; show_hosts; exit 0;;
   R) BOOT_ONLY=1; show_hosts; exit 0;;
+  I) IGNORE_CERT=1;;
   h|*) usage; exit 1;;
  esac
 done
