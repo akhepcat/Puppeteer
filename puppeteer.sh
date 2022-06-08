@@ -16,11 +16,12 @@ host=""
 ###
 
 usage() {
-        echo "${PROG} -[abchnrRDL] [-H host] [-d cmd.txt]"
+        echo "${PROG} -[abchnrRDL] [-H host] [-d cmd.txt] [-f hosts.txt]"
         echo "choose one of"
         echo "	-a		  All hosts"
         echo "	-H [host]	  specific host"
         echo "	-d [commands.txt] debugging/alternate commands text"
+        echo "  -f [hosts.txt]    alternate hosts file"
         echo "	-c		  connect test"
         echo "	-n		  no verification of host configuration with ${HOSTS}"
 	echo "	-b                check for broken upgrades from last-run data"
@@ -96,13 +97,13 @@ do_host() {
 	else
 		if [ 1 -eq ${CONNECT_ONLY} ]
 		then
-			ssh -4 -v ${SSHOPTS} ${SSHIDS} ${jump:+-J $user@$jump} ${user}@${host}
+			ssh -v ${SSHOPTS} ${SSHIDS} ${jump:+-J $user@$jump} ${user}@${host}
 		else
 			echo "MARK --${DATE}-- host: ${host}, user: ${user}, jump: ${jump:-none}, distro: ${distro:-generic}, commands: ${MYCMDS}" >> ${host}.log
-			ssh -4 ${SSHOPTS} ${SSHIDS} ${jump:+-J $user@$jump} ${user}@${host} < ${MYCMDS} 2>&1 | tee -a ${host}.log
+			ssh ${SSHOPTS} ${SSHIDS} ${jump:+-J $user@$jump} ${user}@${host} < ${MYCMDS} 2>&1 | tee -a ${host}.log
 			if [ "${reboot:-X}" = "R" -o \( "${reboot}" = "r" -a ${DO_REBOOT:-0} -eq 1 \) ]
 			then
- 				ssh -4 ${SSHOPTS} ${SSHIDS} ${jump:+-J $user@$jump} ${user}@${host} "shutdown -r now" 2>&1 | tee -a ${host}.log
+ 				ssh ${SSHOPTS} ${SSHIDS} ${jump:+-J $user@$jump} ${user}@${host} "shutdown -r now" 2>&1 | tee -a ${host}.log
 			fi
 		fi
 	fi
@@ -187,13 +188,14 @@ then
 fi
 
 
-while getopts "IRDLbranchH:d:" param; do
+while getopts "IRDLbranchH:d:f:" param; do
  case $param in
   a) ALL=1 ;;
   b) BROKEN_ONLY=1;;
   c) CONNECT_ONLY=1;;
   H) HOST_ONLY=1; host=${OPTARG} ;;
   d) DCMDS=${OPTARG} ;;
+  f) HOSTS=${OPTARG} ;;
   n) VALIDATE=0 ;;
   r) DO_REBOOT=1 ;;
   L) show_hosts; exit 0;;
@@ -214,6 +216,13 @@ then
 		sed -n "/${MARK}/,\$p" "${LF}" | grep -E 'dpkg: error' ) | grep -B1 blacklist | grep log | sed 's/\.log//g;'
 	done 
 	exit 0
+fi
+
+if [ ! -r "${HOSTS}" ]
+then
+	echo "Unable to read hosts file >${HOSTS}<"
+	echo "use the example file to generate your own"
+	exit 1
 fi
 
 if [ -z "${host}" ]
