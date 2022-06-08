@@ -1,6 +1,7 @@
 aptitude update || ( apt-get update && apt-get -y install aptitude )
-aptitude -y safe-upgrade
+DEBIAN_FRONTEND=noninteractive aptitude -o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-confdef -y safe-upgrade
 apt-get -y autoclean
 apt-get -y autoremove
 lsb_release -a
 uptime
+uname -a
