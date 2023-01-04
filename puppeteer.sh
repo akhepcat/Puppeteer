@@ -69,6 +69,11 @@ do_host() {
 	fi
 
 	MYCMDS=${CMDS}${distro:+.$distro}
+	if [ -r "${CMDS}.${host%%.*}" ]
+	then
+		echo "Overriding distro config with host specific config"
+		MYCMDS="${CMDS}.${host%%.*}"
+	fi
 	[[ -n "${DCMDS}" ]] && MYCMDS=${DCMDS}
 
 	echo "host: ${host}, user: ${user}, jump: ${jump:-none}, distro: ${distro:-generic}, commands: ${MYCMDS}"
@@ -77,7 +82,7 @@ do_host() {
 
 	[[ ${IGNORE_CERT} -eq 1 ]] && CERTOPT="-o StrictHostKeyChecking=false -o UserKnownHostsFile=/dev/null -E /dev/null"
 
-	SSHOPTS="-o PasswordAuthentication=no -o KbdInteractiveAuthentication=no -o IdentitiesOnly=yes -o ConnectTimeout=5 ${CERTOPT}"
+	SSHOPTS="-o PasswordAuthentication=no -o KbdInteractiveAuthentication=no -o IdentitiesOnly=yes -o ConnectTimeout=10 ${CERTOPT}"
 	SSHIDS="-i ${HOME}/.ssh/id_rsa.puppeteer -i ${HOME}/.ssh/id_ecdsa.puppeteer"
 
 	user=${user:-root}
